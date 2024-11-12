@@ -11,11 +11,17 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,6 +29,8 @@ import java.util.stream.Collectors;
 @Transactional
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
+    @Value("${com.lyj.securitydomo.upload.path}")
+    private String uploadPath;
     @Override
     public Long register(PostDTO postDTO) {
         // 1. Post 엔티티 생성
@@ -64,6 +72,7 @@ public class PostServiceImpl implements PostService {
         // 게시글을 조회할 때, isVisible이 true인 경우에만 반환
         // findById로 게시글을 찾고, isVisible이 true인 게시글만 필터링
         Post post = postRepository.findById(postId)
+
                 .filter(p -> p.isVisible()) // isVisible이 true인 게시글만 필터링
                 .orElseThrow(() -> new EntityNotFoundException("Post not found or post is invisible"));
 
@@ -71,6 +80,8 @@ public class PostServiceImpl implements PostService {
         return PostDTO.builder()
                 .postId(post.getPostId())
                 .title(post.getTitle())
+                .lat(post.getLat()) // 위도 추가
+                .lng(post.getLng()) // 경도 추가
                 .contentText(post.getContentText())
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpDatedAt())
@@ -101,13 +112,52 @@ public class PostServiceImpl implements PostService {
         postRepository.save(post);
     }
 
+    private void removeFile(List<String> fileNames) {
+        for (String fileName : fileNames) {
+            try {
+                Path filePath = Paths.get(uploadPath, fileName);
+                Files.deleteIfExists(filePath); // 원본 파일 삭제
+                log.info("Deleted file: " + filePath);
+
+                // 썸네일 이미지 삭제 (s_ prefix가 있는 파일로 가정)
+                Path thumbnailPath = Paths.get(uploadPath, "s_" + fileName);
+                Files.deleteIfExists(thumbnailPath); // 썸네일 파일 삭제
+                log.info("Deleted thumbnail: " + thumbnailPath);
+
+            } catch (IOException e) {
+                log.error("Error deleting file: " + fileName, e);
+            }
+        }
+    }
 
 
     //삭제
     @Override
     public void remove(Long postId) {
-        postRepository.deleteById(postId);
+        Optional<Post> postOptional = postRepository.findById(postId);
+
+        if (postOptional.isPresent()) {
+            Post post = postOptional.get();
+
+            // 이미지 파일 삭제
+            List<String> fileNames = post.getOriginalImageLinks();
+            if (fileNames != null && !fileNames.isEmpty()) {
+                removeFile(fileNames);
+            }
+
+            // 이미지 연관 관계 제거
+            post.clearAllImages();
+
+            log.info("=============="+postId);
+            // 게시글 삭제
+            postRepository.deleteById(postId);
+            log.info("Deleted post with ID: " + postId);
+        } else {
+            log.warn("Post with ID " + postId + " does not exist.");
+        }
     }
+
+
 
 
     //페이징
@@ -116,9 +166,11 @@ public class PostServiceImpl implements PostService {
         String[] types = pageRequestDTO.getTypes();
         String keyword = pageRequestDTO.getKeyword();
         Pageable pageable = pageRequestDTO.getPageable("postId");
+        Page<Post> result =postRepository.searchAll(types,keyword, pageable);
+        log.info("-------------------"+keyword);
 
-        // isVisible이 true인 게시글만 조회
-        Page<Post> result = postRepository.findByIsVisibleTrue(pageable);  // isVisible이 true인 게시글만 조회
+//                 isVisible이 true인 게시글만 조회
+//        Page<Post> result = postRepository.findByIsVisibleTrue(pageable);  // isVisible이 true인 게시글만 조회
 
         // 조회된 게시글 수 로그로 출력
         log.info("조회된 게시글 수: {}", result.getTotalElements());

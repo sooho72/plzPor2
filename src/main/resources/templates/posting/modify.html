@@ -3,26 +3,233 @@
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{layout/basic.html}">
 
+<head>
+  <meta charset="UTF-8">
+  <title>게시글 수정</title>
+  <!-- Bootstrap CSS 링크 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* 페이지 배경 색상 설정 */
+    body {
+      background-color: #f8f9fa;
+    }
+    /* 지도 크기 설정 */
+    #map {
+      width: 100%;
+      height: 400px; /* 지도 높이 설정 */
+      margin-top: 10px;
+    }
+  </style>
+  <!-- 네이버 지도 API 스크립트 -->
+  <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=9n21s23li1"></script>
+  <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps-geocoder.js?ncpClientId=9n21s23li1"></script>
+</head>
+
+<body>
+<!-- 본문 내용 시작 -->
 <div layout:fragment="content">
-  <div class="container">
-    <h3>[[${board.writer}]]의 글 수정</h3>
-    <form action="/board/">
-    <input type="hidden" name="num" id="num" value="${board.num }">
-    <div class="form-group">
-      <label for="title">제목:</label>
-      <input type="text" class="form-control" id="title" name="title" th:value="${post.title}">
+  <!-- 헤더 영역 -->
+  <header class="bg-dark py-5">
+    <div class="container px-4 px-lg-5 my-5">
+      <div class="text-center text-white">
+        <h1 class="display-4 fw-bolder">게시글 수정</h1>
+        <p class="lead fw-normal text-white-50 mb-0">게시글 내용을 수정하세요!</p>
+      </div>
     </div>
-    <div class="form-group">
-      <label for="writer">글쓴이:</label>
-      <input type="text" class="form-control" id="writer" name="writer" th:value="${post.user.user_id}" readonly="readonly">
+  </header>
+
+  <!-- 수정 폼 영역 -->
+  <section class="py-5">
+    <div class="container px-4 px-lg-5 mt-5">
+      <!-- 에러 메시지 표시 -->
+      <div th:if="${error}" class="alert alert-danger" role="alert">
+        <p th:text="${error}"></p>
+      </div>
+      <!-- 게시글 수정 폼 -->
+      <form th:action="@{/posting/modify/{postId}(postId=${post.postId})}" method="post" enctype="multipart/form-data">
+        <!-- 게시글 ID를 hidden input으로 전달 -->
+        <input type="hidden" th:value="${post.postId}" name="postId" />
+
+        <!-- 제목 입력 필드 -->
+        <div class="mb-3">
+          <label for="title" class="form-label">제목</label>
+          <input type="text" class="form-control" id="title" name="title" th:value="${post.title}" required>
+        </div>
+
+        <!-- 내용 입력 필드 -->
+        <div class="mb-3">
+          <label for="contentText" class="form-label">내용</label>
+          <textarea class="form-control" id="contentText" name="contentText" rows="5" required>[[${post.contentText}]]</textarea>
+        </div>
+
+        <!-- 모집 인원 입력 필드 -->
+        <div class="mb-3">
+          <label for="requiredParticipants" class="form-label">모집 인원</label>
+          <input type="number" class="form-control" id="requiredParticipants" name="requiredParticipants" th:value="${post.requiredParticipants}" min="1" required>
+        </div>
+
+        <!-- 장소 검색 및 지도 표시 영역 -->
+        <div>
+          <label>만남 장소 설정</label>
+          <input type="text" id="search" placeholder="장소 검색" style="width:80%; margin-bottom:10px;">
+          <button type="button" id="searchButton">검색</button>
+          <div id="map"></div>
+        </div>
+
+        <!-- 기존 저장된 위도와 경도 값을 hidden input으로 전달 -->
+        <input type="hidden" id="latitude" name="lat" th:value="${post.lat}">
+        <input type="hidden" id="longitude" name="lng" th:value="${post.lng}">
+
+        <!-- 이미지 업로드 필드 -->
+        <div class="mb-3">
+          <label for="files" class="form-label">이미지 업로드</label>
+          <input type="file" class="form-control" id="files" name="files" accept="image/*" multiple>
+          <div class="form-text">이미지 파일만 업로드할 수 있습니다. 기존 이미지도 유지됩니다.</div>
+        </div>
+
+        <!-- 수정 및 목록으로 돌아가기 버튼 -->
+        <button type="submit" class="btn btn-primary">게시글 수정</button>
+        <a th:href="@{/posting/list}" class="btn btn-secondary">목록으로 돌아가기</a>
+      </form>
     </div>
-    <div class="form-group">
-      <label for="content">내용</label>
-      <textarea class="form-control" rows="5" id="content" name="content">[[${board.content}]]</textarea>
-    </div>
-    <div class="form-group text-right">
-      <button type="button" class="btn btn-secondary btn-sm" id="btnModify">수정하기</button>
-    </div>
-    </form>
-  </div>
+  </section>
+
+  <!-- 지도 초기화 및 검색 기능을 위한 스크립트 -->
+  <script>
+    var map;
+    var infoWindow;
+
+    // 네이버 지도 초기화 함수
+    function initializeMap() {
+      // 기존에 저장된 위도와 경도를 사용하여 지도를 초기화
+      var lat = parseFloat(document.getElementById('latitude').value) || 37.3595316;
+      var lng = parseFloat(document.getElementById('longitude').value) || 127.1052133;
+
+      map = new naver.maps.Map("map", {
+        center: new naver.maps.LatLng(lat, lng),
+        zoom: 15,
+        minZoom: 8,
+        mapTypeControl: true,
+        zoomControl: true,
+        zoomControlOptions: {
+          position: naver.maps.Position.TOP_RIGHT
+        }
+      });
+
+      // 지도에 마커 추가
+      var marker = new naver.maps.Marker({
+        position: new naver.maps.LatLng(lat, lng),
+        map: map
+      });
+
+      infoWindow = new naver.maps.InfoWindow({
+        anchorSkew: true
+      });
+
+      // 마우스 커서를 포인터로 설정
+      map.setCursor('pointer');
+    }
+
+    // 좌표를 주소로 변환하여 지도에 표시하는 함수
+    function searchCoordinateToAddress(latlng) {
+      infoWindow.close();
+
+      naver.maps.Service.reverseGeocode({
+        coords: latlng,
+        orders: [
+          naver.maps.Service.OrderType.ADDR,
+          naver.maps.Service.OrderType.ROAD_ADDR
+        ].join(',')
+      }, function (status, response) {
+        if (status === naver.maps.Service.Status.ERROR) {
+          return alert('Something Wrong!');
+        }
+
+        var items = response.v2.results;
+        var address = '';
+        var htmlAddresses = [];
+
+        // 각 결과 항목에 대해 주소를 생성
+        for (var i = 0, ii = items.length; i < ii; i++) {
+          var item = items[i];
+          address = makeAddress(item) || '';
+          var addrType = item.name === 'roadaddr' ? '[도로명 주소]' : '[지번 주소]';
+          htmlAddresses.push((i + 1) + '. ' + addrType + ' ' + address);
+        }
+
+        // 지도에 정보창을 열어 주소 표시
+        infoWindow.setContent([
+          '<div style="padding:10px;min-width:200px;line-height:150%;">',
+          '<h4 style="margin-top:5px;">검색 좌표</h4><br />',
+          htmlAddresses.join('<br />'),
+          '</div>'
+        ].join('\n'));
+
+        infoWindow.open(map, latlng);
+
+        // 위도와 경도를 hidden input에 설정
+        document.getElementById('latitude').value = latlng.getLat();
+        document.getElementById('longitude').value = latlng.getLng();
+      });
+    }
+
+    // 주소를 좌표로 변환하여 지도에 표시하는 함수
+    function searchAddressToCoordinate(address) {
+      naver.maps.Service.geocode({
+        query: address
+      }, function (status, response) {
+        if (status === naver.maps.Service.Status.ERROR) {
+          return alert('Something Wrong!');
+        }
+
+        if (response.v2.meta.totalCount === 0) {
+          return alert('검색 결과가 없습니다.');
+        }
+
+        var item = response.v2.addresses[0];
+        var point = new naver.maps.Point(item.x, item.y);
+
+        // 위도와 경도를 hidden input에 설정
+        document.getElementById('latitude').value = item.y;
+        document.getElementById('longitude').value = item.x;
+
+        // 지도에 정보창을 열어 주소 표시
+        infoWindow.setContent([
+          '<div style="padding:10px;min-width:200px;line-height:150%;">',
+          '<h4 style="margin-top:5px;">검색 주소 : ' + address + '</h4><br />',
+          '[도로명 주소] ' + item.roadAddress + '<br>' +
+          '[지번 주소] ' + item.jibunAddress,
+          '</div>'
+        ].join('\n'));
+
+        map.setCenter(point);
+        infoWindow.open(map, point);
+      });
+    }
+
+    // 지도 초기화 및 이벤트 리스너 추가
+    function initGeocoder() {
+      initializeMap();
+
+      // 지도 클릭 시 좌표로 주소 검색
+      map.addListener('click', function (e) {
+        searchCoordinateToAddress(e.coord);
+      });
+
+      // 검색 버튼 클릭 시 주소 검색
+      document.getElementById('searchButton').addEventListener('click', function () {
+        var address = document.getElementById('search').value;
+        if (address) {
+          searchAddressToCoordinate(address);
+        } else {
+          alert("장소를 입력하세요.");
+        }
+      });
+    }
+
+    // 네이버 지도 API 로드 후 초기화 함수 호출
+    naver.maps.onJSContentLoaded = initGeocoder;
+  </script>
 </div>
+</body>
+</html>

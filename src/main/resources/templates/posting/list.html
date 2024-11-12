@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout/basic.html}">
-
 <head>
   <meta charset="UTF-8">
   <title>게시글 목록</title>
@@ -13,18 +12,19 @@
       background-color: #007bff;
       color: white;
     }
-    /* 카드 썸네일 이미지 */
+    /* 카드 썸네일 이미지 스타일 */
     .card-img-top {
-      width: 100%; /* 카드 너비에 맞춰 전체 너비 사용 */
-      height: auto; /* 높이는 자동으로 조절하여 비율 유지 */
-      max-height: 200px; /* 최대 높이를 설정하여 카드 크기 조절 */
-      object-fit: cover; /* 이미지 비율 유지 및 잘리도록 조정 */
+      width: 100%;
+      height: auto;
+      max-height: 200px; /* 이미지의 최대 높이 */
+      object-fit: cover; /* 이미지 비율 유지 */
     }
   </style>
 </head>
 
 <body>
 <div layout:fragment="content">
+  <!-- 페이지 헤더 섹션 -->
   <header class="bg-dark py-5">
     <div class="container px-4 px-lg-5 my-5">
       <div class="text-center text-white">
@@ -34,32 +34,53 @@
     </div>
   </header>
 
+  <!-- 검색창 섹션 -->
+  <div class="container mt-4">
+    <form action="/posting/list" method="get">
+      <!-- 검색 시 페이지 크기를 설정하는 hidden 필드 -->
+      <input type="hidden" name="size" th:value="${pageRequestDTO.size}">
+      <div class="input-group mb-3">
+        <!-- 검색 필터 옵션 -->
+        <select class="form-select" name="type">
+          <option value="">---</option>
+          <option value="t" th:selected="${pageRequestDTO.type =='t'}">제목</option>
+          <option value="c" th:selected="${pageRequestDTO.type =='c'}">내용</option>
+        </select>
+        <!-- 키워드 입력 필드 -->
+        <input type="text" class="form-control" name="keyword" th:value="${pageRequestDTO.keyword}">
+        <!-- 검색 및 초기화 버튼 -->
+        <button class="btn btn-outline-secondary searchBtn" type="submit">Search</button>
+        <button class="btn btn-outline-secondary clearBtn" type="button" onclick="location.href='/posting/list'">Clear</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 게시글 목록 섹션 -->
   <section class="py-5">
     <div class="container px-4 px-lg-5 mt-5">
       <div class="row gx-4 gx-lg-5 row-cols-2 row-cols-md-3 row-cols-xl-4 justify-content-center">
+        <!-- 게시글 목록을 반복하며 카드 형식으로 표시 -->
         <div class="col mb-5" th:each="post : ${posts}">
           <div class="card h-100">
-            <!-- 썸네일 이미지와 상세 페이지 링크 -->
+            <!-- 게시글 상세보기 링크와 이미지 -->
             <a th:href="@{/posting/read/{postId}(postId=${post.postId})}" class="text-decoration-none">
               <img class="card-img-top img-thumbnail" th:src="@{${post.getThumbnail()}}" alt="이미지"/>
             </a>
+            <!-- 게시글 정보 표시 영역 -->
             <div class="card-body p-4">
               <div class="text-center">
-                <!-- 게시글 제목 -->
+                <!-- 제목, 작성자, 모집 상태, 모집 인원 표시 -->
                 <h5 class="fw-bolder" th:text="${post.title}"></h5>
-                <!-- 작성자 정보 -->
                 <p th:text="'작성자: ' + ${post.author}"></p>
-                <!-- 모집 상태 및 모집 인원 -->
                 <p th:text="'모집 상태: ' + ${post.status}"></p>
                 <p th:text="'모집 인원: ' + ${post.requiredParticipants} + '명'"></p>
               </div>
             </div>
+            <!-- 카드 하단의 버튼 영역 -->
             <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
               <div class="text-center" th:attr="data-post-id=${post.postId}">
                 <!-- 신고하기 버튼 -->
-                <button type="button" class="btn btn-outline-danger mt-auto" data-bs-toggle="modal" data-bs-target="#reportModal">
-                  신고하기
-                </button>
+                <button type="button" class="btn btn-outline-danger mt-auto" data-bs-toggle="modal" data-bs-target="#reportModal">신고하기</button>
                 <!-- 신청하기 버튼 -->
                 <a class="btn btn-primary mt-auto" th:href="@{/posting/apply/{postId}(postId=${post.postId})}">신청하기</a>
               </div>
@@ -69,24 +90,8 @@
       </div>
     </div>
   </section>
-      <!-- 페이지네이션 -->
-      <nav aria-label="Page navigation">
-        <ul class="pagination justify-content-center">
-<!--          <li class="page-item" th:class="${currentPage == 1} ? 'disabled'">-->
-<!--            <a th:href="@{/posting/list(page=${currentPage - 1}, size=10, type=${type}, keyword=${keyword})}" class="page-link">이전</a>-->
-<!--          </li>-->
 
-          <li class="page-item" th:each="i : ${#numbers.sequence(1, totalPages)}" th:class="${currentPage == i} ? 'active'">
-            <a th:href="@{/posting/list(page=${i}, size=8, type=${type}, keyword=${keyword})}" class="page-link" th:text="${i}"></a>
-          </li>
-
-<!--          <li class="page-item" th:class="${currentPage == totalPages} ? 'disabled'">-->
-<!--            <a th:href="@{/posting/list(page=${currentPage + 1}, size=${size}, type=${type}, keyword=${keyword})}" class="page-link">다음</a>-->
-<!--          </li>-->
-        </ul>
-      </nav>
-
-  <!-- 신고하기 모달 -->
+  <!-- 신고하기 모달 섹션 -->
   <div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -95,6 +100,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
+          <!-- 신고 유형과 사유를 입력하는 폼 -->
           <form id="reportForm">
             <div class="mb-3">
               <label for="category" class="form-label">신고 유형:</label>
@@ -112,6 +118,7 @@
             </div>
           </form>
         </div>
+        <!-- 모달의 하단 버튼 영역 -->
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
           <button type="button" class="btn btn-primary" id="submitReport">신고하기</button>
@@ -120,16 +127,28 @@
     </div>
   </div>
 
-  <script>
-    // 신고하기 모달 열기 이벤트
-    document.getElementById('reportModal').addEventListener('show.bs.modal', function (event) {
-      const button = event.relatedTarget;
-      const postId = button.closest('.text-center').getAttribute('data-post-id');
+  <!-- 페이지네이션 -->
+  <nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+      <!-- 페이지 번호 목록 생성 -->
+      <li class="page-item" th:each="i : ${#numbers.sequence(1, totalPages)}" th:class="${currentPage == i} ? 'active'">
+        <a th:href="@{/posting/list(page=${i}, size=8, type=${type}, keyword=${keyword})}" class="page-link" th:text="${i}"></a>
+      </li>
+    </ul>
+  </nav>
 
+  <script>
+    // 신고 모달이 열릴 때 이벤트 처리
+    document.getElementById('reportModal').addEventListener('show.bs.modal', function (event) {
+      const button = event.relatedTarget; // 신고하기 버튼 참조
+      const postId = button.closest('.text-center').getAttribute('data-post-id'); // 해당 게시글 ID 가져오기
+
+      // 신고하기 버튼 클릭 시 처리
       document.getElementById('submitReport').onclick = function () {
         const category = document.getElementById('category').value;
         const reason = document.getElementById('reason').value;
 
+        // 신고 정보 서버로 전송
         fetch('/report/create', {
           method: 'POST',
           headers: {

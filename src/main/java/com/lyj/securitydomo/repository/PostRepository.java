@@ -17,14 +17,14 @@ import java.util.Optional;
 public interface PostRepository extends JpaRepository<Post, Long>, PostSearch {
 
 
-    @Query("SELECT p FROM Post p WHERE " //동적쿼리
-            + "(:keyword IS NULL OR p.title LIKE %:keyword% OR p.contentText LIKE %:keyword%) "
-            + "AND (:types IS NULL OR p.title IN (:types))")
+//    @Query("SELECT p FROM Post p WHERE " //동적쿼리
+//            + "(:keyword IS NULL OR p.title LIKE %:keyword% OR p.contentText LIKE %:keyword%) "
+//            + "AND (:types IS NULL OR p.title IN (:types))")
 
 
-    Page<Post> searchAll(@Param("types") String[] types,
-                         @Param("keyword") String keyword,
-                         Pageable pageable);
+//    Page<Post> searchAll(@Param("types") String[] types,
+//                         @Param("keyword") String keyword,
+//                         Pageable pageable);
 
 
     @EntityGraph(attributePaths = {"imageSet"})

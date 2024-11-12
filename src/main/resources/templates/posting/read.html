@@ -17,6 +17,7 @@
             <a th:href="@{/posting/apply/{postId}(postId=${post.postId})}" class="btn btn-primary me-2">신청하기</a>
             <button class="btn btn-outline-danger me-2" data-bs-toggle="modal" data-bs-target="#reportModal">신고하기</button>
             <a th:href="@{/posting/modify/{postId}(postId=${post.postId})}" class="btn btn-secondary me-2">수정하기</a>
+            <a th:href="@{/posting/remove/{postId}(postId=${post.postId})}" class="btn btn-secondary me-2">삭제하기</a>
             <a th:href="@{/posting/list}" class="btn btn-dark">목록으로 돌아가기</a>
         </div>
     </div>
@@ -42,26 +43,10 @@
         <div id="map" style="width: 100%; height: 400px;"></div>
 
         <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=9n21s23li1"></script>
-        <script>
-            var map;
+        <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps-geocoder.js?ncpClientId=9n21s23li1"></script>
 
-            function initializeMap() {
-                var lat = /*[[${post.lat}]]*/ 37.3595316; // 기본값
-                var lng = /*[[${post.lng}]]*/ 127.1052133; // 기본값
 
-                map = new naver.maps.Map("map", {
-                    center: new naver.maps.LatLng(lat, lng),
-                    zoom: 15,
-                });
 
-                var marker = new naver.maps.Marker({
-                    position: new naver.maps.LatLng(lat, lng),
-                    map: map
-                });
-            }
-
-            naver.maps.onJSContentLoaded = initializeMap; // 지도가 로드된 후 초기화 함수 호출
-        </script>
     </div>
 
     <!-- 신고하기 모달 -->
@@ -99,6 +84,31 @@
     </div>
 
     <script th:inline="javascript">
+        const lat = [[${post.lat}]];
+        const lng = [[${post.lng}]];
+        console.log(lat)
+
+
+        // var lat = 35.179816;
+        // var lng = 129.075022;
+
+        var map;
+
+        function initializeMap() {
+
+
+            map = new naver.maps.Map("map", {
+                center: new naver.maps.LatLng(lat, lng),
+                zoom: 12,
+            });
+
+            var marker = new naver.maps.Marker({
+                position: new naver.maps.LatLng(lat, lng),
+                map: map
+            });
+        }
+
+        naver.maps.onJSContentLoaded = initializeMap; // 지도가 로드된 후 초기화 함수 호출
         // 신고하기 모달 열기 이벤트
         document.getElementById('reportModal').addEventListener('show.bs.modal', function (event) {
             // postId를 Thymeleaf에서 받아오기
